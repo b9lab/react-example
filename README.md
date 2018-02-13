@@ -9,3 +9,13 @@ Slight variation on `truffle unbox react`.
 * Added a function to change the stored value.
 * Added a function to update the state on event.
 * Added a button that will change the stored value.
+
+## Run it
+
+Start an Ethereum node listening on port 8545. Then, with Truffle v4.0.6:
+
+```sh
+$ truffle migrate
+
+$ npm run start
+```
