@@ -32,7 +32,8 @@ class App extends Component {
       // Instantiate contract once web3 provided.
       this.instantiateContract()
     })
-    .catch(() => {
+    .catch(error => {
+      console.error(error);
       console.log('Error finding web3.')
     })
   }
@@ -69,12 +70,14 @@ class App extends Component {
       }).then((result) => {
         // Update state with the result.
         return this.setState({ storageValue: result.toString(10) })
-      })
+      }).catch(console.error);
     })
   }
 
   updateValue(val) {
-    return this.storageContractInstance.set(val, { from: this.account });
+    return this.storageContractInstance.set(val, { from: this.account })
+    .then(txObj => this.setState({ storageValue: txObj.logs[0].args.value.toString(10)}))
+    .catch(console.error);
   }
 
   addEventListener(component) {
