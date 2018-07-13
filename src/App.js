@@ -59,8 +59,10 @@ class App extends Component {
         simpleStorageInstance = instance
 
         // set some refs
-        this.storageContractInstance = instance;
-        this.account = accounts[0];
+        this.setState({
+          storageContractInstance: instance,
+          account: accounts[0]
+        });
         this.addEventListener(this);
         // Stores a given value, 5 by default.
         return simpleStorageInstance.set(5, {from: accounts[0]})
@@ -75,13 +77,16 @@ class App extends Component {
   }
 
   updateValue(val) {
-    return this.storageContractInstance.set(val, { from: this.account })
-    .then(txObj => this.setState({ storageValue: txObj.logs[0].args.value.toString(10)}))
+    return this.state.storageContractInstance.set(val, { from: this.state.account })
+    .then(txObj => {
+      console.log("set receipt status", txObj.receipt.status);
+      this.setState({ storageValue: txObj.logs[0].args.value.toString(10)});
+    })
     .catch(console.error);
   }
 
   addEventListener(component) {
-    const updateEvent = this.storageContractInstance.LogChanged();
+    const updateEvent = this.state.storageContractInstance.LogChanged();
     updateEvent.watch(function(err, result) {
       if (err) {
         console.log(err);
