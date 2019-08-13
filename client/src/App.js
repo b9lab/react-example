@@ -1,7 +1,6 @@
 import React, { Component } from "react";
 import SimpleStorageContract from "./contracts/SimpleStorage.json";
 import getWeb3 from "./utils/getWeb3";
-import truffleContract from "truffle-contract";
 
 import "./App.css";
 
@@ -22,16 +21,12 @@ class App extends Component {
       const accounts = await web3.eth.getAccounts();
 
       // Get the contract instance.
-      const Contract = truffleContract(SimpleStorageContract);
-      Contract.setProvider(web3.currentProvider);
-      if (typeof Contract.currentProvider.sendAsync !== "function") {
-        Contract.currentProvider.sendAsync = function() {
-            return Contract.currentProvider.send.apply(
-                Contract.currentProvider, arguments
-            );
-        };
-      }
-      const instance = await Contract.deployed();
+      const networkId = await web3.eth.net.getId();
+      const deployedNetwork = SimpleStorageContract.networks[networkId];
+      const instance = new web3.eth.Contract(
+        SimpleStorageContract.abi,
+        deployedNetwork && deployedNetwork.address,
+      );
 
       // Set web3, accounts, and contract to the state, and then proceed with an
       // example of interacting with the contract's methods.
@@ -42,7 +37,7 @@ class App extends Component {
       alert(
         `Failed to load web3, accounts, or contract. Check console for details.`
       );
-      console.log(error);
+      console.error(error);
     }
   };
 
@@ -50,24 +45,24 @@ class App extends Component {
     const { accounts, contract } = this.state;
 
     // Stores a given value, 5 by default.
-    await contract.set(5, { from: accounts[0] });
+    await contract.methods.set(5).send({ from: accounts[0] });
 
     // Get the value from the contract to prove it worked.
-    const response = await contract.get();
+    const response = await contract.methods.get().call();
 
     // Update state with the result.
-    this.setState({ storageValue: response.toNumber() });
+    this.setState({ storageValue: response });
   };
 
   updateValue = async(val) => {
     try {
       const { accounts, contract } = this.state;
-      const result = await contract.set(val, { from: accounts[0] });
-      console.log("set receipt status", result.receipt.status);
-      if (parseInt(result.receipt.status) !== 1) {
+      const receipt = await contract.methods.set(val).send({ from: accounts[0] });
+      console.log("set receipt status", receipt.status);
+      if (!receipt.status) {
         throw new Error("Failed to set value");
       }
-      // this.setState({ storageValue: result.logs[0].args.value.toString(10)});
+      // this.setState({ storageValue: receipt.events.LogChanged.returnValues.value });
       // We skip using the event here because we add a listener.
     } catch(error) {
       alert(`Failed to set value to $val`);
@@ -76,15 +71,16 @@ class App extends Component {
   };
 
   addEventListener(component) {
-    const updateEvent = this.state.contract.LogChanged();
-    updateEvent.watch(function(err, result) {
-      if (err) {
-        console.log(err);
+    const updateEvent = this.state.contract.events.LogChanged();
+    updateEvent
+      .on("data", result => {
+        console.log("Changed event received, value: " + result.returnValues.value);
+        component.setState({ storageValue: result.returnValues.value });
+      })
+      .on("error", err => {
+        console.error(err);
         return;
-      }
-      console.log("Changed event received, value: " + result.args.value.toString(10));
-      component.setState({ storageValue: result.args.value.toString(10)});
-    })
+      });
   };
 
   render() {
